@@ -1,0 +1,45 @@
+digraph architecture {
+  rankdir=LR;
+  graph [fontname="Helvetica", fontsize=12, nodesep=0.35, ranksep=0.5, pad=0.3, bgcolor="white"];
+  node  [fontname="Helvetica", fontsize=11, shape=box, style="rounded,filled", fillcolor="#F4F6F8", color="#5B6770"];
+  edge  [fontname="Helvetica", fontsize=9, color="#5B6770"];
+
+  subgraph cluster_airflow {
+    label="Apache Airflow DAG  (wine_serverless_mlops_pipeline, @daily)";
+    style="rounded,dashed"; color="#1F77B4"; fontcolor="#1F77B4";
+    extract   [label="extract\n(UCI Wine → data/raw/<ds>/)"];
+    gate      [label="validate_data_quality\nGreat Expectations\n30 expectations", fillcolor="#FFF4D6", color="#C98A00"];
+    transform [label="transform\n(dedupe, types,\nstratified split)"];
+    train     [label="train_and_evaluate\nLogReg + scaler\nmodel gate: acc ≥ 0.90", fillcolor="#FFF4D6", color="#C98A00"];
+    deploy    [label="deploy_to_lambda\nupload · repoint · smoke test"];
+    extract -> gate -> transform -> train -> deploy;
+  }
+
+  fail [label="Run FAILS\n(downstream blocked,\nreport saved)", shape=box, style="rounded,filled", fillcolor="#FDE2E1", color="#C0392B"];
+  gate  -> fail [style=dashed, color="#C0392B", label="expectation fails"];
+  train -> fail [style=dashed, color="#C0392B", label="acc < threshold"];
+
+  subgraph cluster_aws {
+    label="AWS (or LocalStack emulator)";
+    style="rounded,dashed"; color="#E07B00"; fontcolor="#E07B00";
+    s3     [label="Amazon S3\nversioned model registry\nmodels/wine/<ds>/model.json", shape=cylinder, fillcolor="#FFF0E0"];
+    lambda [label="AWS Lambda\nwine-inference-<stage>\nPython 3.12 · arm64 · 256 MB", fillcolor="#FFF0E0"];
+    apigw  [label="API Gateway HTTP API\nPOST /predict · GET /health\n(or Function URL)", fillcolor="#FFF0E0"];
+    cw     [label="CloudWatch Logs + X-Ray\nJSON logs: latency, cold_start", fillcolor="#FFF0E0"];
+    iam    [label="IAM role\nS3 read-only", fillcolor="#FFF0E0"];
+    apigw -> lambda [label="invoke"];
+    lambda -> s3 [label="load model\n(cold start only)"];
+    lambda -> cw;
+    iam -> lambda [style=dotted, arrowhead=none];
+  }
+
+  client [label="Client\n(curl / app)", shape=ellipse, fillcolor="#E8F5E9", color="#2E7D32"];
+  sam    [label="AWS SAM template.yaml\n(IaC: sam build / sam deploy)", shape=note, fillcolor="#EDE7F6", color="#5E35B1"];
+
+  deploy -> s3     [label="1. put model.json"];
+  deploy -> lambda [label="2. update MODEL_S3_KEY\n3. invoke smoke test"];
+  client -> apigw  [label="JSON features"];
+  sam -> apigw [style=dotted, label="provisions"];
+  sam -> lambda [style=dotted];
+  sam -> s3 [style=dotted];
+}

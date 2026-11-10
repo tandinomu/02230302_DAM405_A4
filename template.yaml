@@ -1,0 +1,100 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  DAM405 PA4 - serverless inference for the wine-cultivar classifier.
+  Lambda function + HTTP API (POST /predict, GET /health) + S3 bucket for model artefacts.
+
+Parameters:
+  Stage:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, prod]
+  ModelS3Key:
+    Type: String
+    Default: ""
+    Description: >
+      S3 key of the model to serve. Leave empty to use the model bundled in the package;
+      the Airflow deploy task sets this on the live function after each approved run.
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Architectures: [arm64]          # Graviton: ~20% cheaper per GB-second than x86
+    MemorySize: 256
+    Timeout: 10
+    Tracing: Active                 # X-Ray traces for latency / cold-start analysis
+    LoggingConfig:
+      LogFormat: JSON
+
+Resources:
+  ModelBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "dam405-wine-models-${Stage}-${AWS::AccountId}"
+      VersioningConfiguration:
+        Status: Enabled             # every model version is kept -> instant rollback
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+  InferenceApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: !Ref Stage
+
+  InferenceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "wine-inference-${Stage}"
+      Description: Scores wine samples with the latest approved model
+      CodeUri: src/inference/
+      Handler: app.lambda_handler
+      Environment:
+        Variables:
+          MODEL_S3_BUCKET: !If [UseS3Model, !Ref ModelBucket, ""]
+          MODEL_S3_KEY: !Ref ModelS3Key
+          LOG_LEVEL: INFO
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref ModelBucket
+      Events:
+        Predict:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref InferenceApi
+            Path: /predict
+            Method: POST
+        Health:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref InferenceApi
+            Path: /health
+            Method: GET
+
+  InferenceLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/wine-inference-${Stage}"
+      RetentionInDays: 14
+
+Conditions:
+  UseS3Model: !Not [!Equals [!Ref ModelS3Key, ""]]
+
+Outputs:
+  PredictUrl:
+    Description: POST JSON here to get predictions
+    Value: !Sub "https://${InferenceApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}/predict"
+  HealthUrl:
+    Value: !Sub "https://${InferenceApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}/health"
+  FunctionName:
+    Description: Set LAMBDA_FUNCTION_NAME to this for the Airflow deploy task
+    Value: !Ref InferenceFunction
+  ModelBucketName:
+    Description: Set MODEL_BUCKET to this for the Airflow deploy task
+    Value: !Ref ModelBucket

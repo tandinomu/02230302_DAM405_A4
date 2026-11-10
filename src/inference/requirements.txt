@@ -1,0 +1,2 @@
+# Intentionally empty: the handler uses only the Python standard library.
+# boto3 (used only when the model is loaded from S3) is provided by the Lambda runtime.

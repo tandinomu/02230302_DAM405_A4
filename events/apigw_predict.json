@@ -1,0 +1,23 @@
+{
+  "version": "2.0",
+  "routeKey": "POST /predict",
+  "rawPath": "/predict",
+  "rawQueryString": "",
+  "headers": {
+    "content-type": "application/json"
+  },
+  "requestContext": {
+    "http": {
+      "method": "POST",
+      "path": "/predict",
+      "protocol": "HTTP/1.1",
+      "sourceIp": "127.0.0.1",
+      "userAgent": "curl"
+    },
+    "requestId": "local-test",
+    "routeKey": "POST /predict",
+    "stage": "$default"
+  },
+  "body": "{\"features\": {\"alcohol\": 12.29, \"malic_acid\": 2.83, \"ash\": 2.22, \"alcalinity_of_ash\": 18.0, \"magnesium\": 88.0, \"total_phenols\": 2.45, \"flavanoids\": 2.25, \"nonflavanoid_phenols\": 0.25, \"proanthocyanins\": 1.99, \"color_intensity\": 2.15, \"hue\": 1.15, \"od280_od315\": 3.3, \"proline\": 290.0}}",
+  "isBase64Encoded": false
+}

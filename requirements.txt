@@ -1,0 +1,13 @@
+# Pipeline, tests and tooling (Python 3.11 or 3.12).
+# The Lambda function itself needs nothing: see src/inference/requirements.txt.
+scikit-learn>=1.5,<2
+pandas>=2.2
+numpy>=1.26
+great_expectations>=1.3,<2
+boto3>=1.34
+moto[s3,lambda]>=5.0
+pytest>=8.0
+
+# Airflow is installed separately with its official constraints file (see README):
+#   pip install "apache-airflow==3.1.8" --constraint \
+#     "https://raw.githubusercontent.com/apache/airflow/constraints-3.1.8/constraints-3.12.txt"

@@ -1,0 +1,20 @@
+# LocalStack: emulates S3, Lambda and IAM on http://localhost:4566.
+# Since March 2026 LocalStack needs a (free, Hobby tier) auth token.
+# Put it in your shell or in .env (git-ignored) - never commit it:
+#     export LOCALSTACK_AUTH_TOKEN=ls-xxxx
+services:
+  localstack:
+    image: localstack/localstack:latest
+    container_name: dam405-localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - LOCALSTACK_AUTH_TOKEN=${LOCALSTACK_AUTH_TOKEN:?set LOCALSTACK_AUTH_TOKEN (free account at app.localstack.cloud)}
+      - SERVICES=s3,lambda,iam,logs,sts,apigateway
+      - DEBUG=0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock   # LocalStack runs Lambda code in containers
+      - localstack-data:/var/lib/localstack
+
+volumes:
+  localstack-data:

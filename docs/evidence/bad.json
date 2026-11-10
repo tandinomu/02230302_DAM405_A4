@@ -1,0 +1,1 @@
+{"statusCode": 400, "headers": {"Content-Type": "application/json"}, "body": "{\"error\": \"missing feature(s): malic_acid, ash, alcalinity_of_ash, magnesium, total_phenols, flavanoids, nonflavanoid_phenols, proanthocyanins, color_intensity, hue, od280_od315, proline\"}"}
